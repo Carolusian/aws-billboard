@@ -1,8 +1,10 @@
 
-# This is the server logic for a Shiny web application.
-# You can find out more about building applications with Shiny here:
-#
-# http://shiny.rstudio.com
+# The main business logic to generate AWS billing dashboard data
+# 
+# Author: Charlie Chen
+# https://github.com/carolusian
+# Copyright (c) 2017, Charlie Chen. All rights reserved
+# Copyrights licensed under the New BSD License.
 #
 
 library(shiny)
@@ -13,12 +15,8 @@ shinyServer(function(input, output) {
   
   output$distPlot <- renderPlot({
     
-    # generate bins based on input$bins from ui.R
-    # x    <- faithful[, 2]
-    # bins <- seq(min(x), max(x), length.out = input$bins + 1)
-    
-    # draw the histogram with the specified number of bins
-    # hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    # Time of span of the billings to be included
+    days <- input$days
     
     # Read all billing details in a single dataframe
     files <- list.files('~/billings')
@@ -43,8 +41,8 @@ shinyServer(function(input, output) {
     
     # Find only instance usage, filter out data transfers, storage usages, etc
     df_sum <- filter(df_sum, grepl('BoxUsage', UsageType) | grepl('InstanceUsage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
-    pie(df_sum$TotalCosts, labels = df_sum$UsageType)
-    View(df_sum)
+    # pie(df_sum$TotalCosts, labels = df_sum$UsageType)
+    # View(df_sum)
   })
   
 })

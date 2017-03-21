@@ -15,10 +15,10 @@ shinyUI(fluidPage(
   # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
-      sliderInput("bins",
-                  "Number of bins:",
+      sliderInput("days",
+                  "Number of days:",
                   min = 1,
-                  max = 50,
+                  max = 90,
                   value = 30)
     ),
 

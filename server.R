@@ -24,9 +24,9 @@ for (f in files[-1]) {
 
 # Find usages of EC2, RDS and ElastiCache, CloudFront 
 df <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
-                                    'Amazon RDS Service',
-                                    'Amazon ElastiCache',
-                                    'Amazon CloudFront'))
+                                        'Amazon RDS Service',
+                                        'Amazon ElastiCache',
+                                        'Amazon CloudFront'))
 
 shinyServer(function(input, output) {
   
@@ -69,7 +69,7 @@ shinyServer(function(input, output) {
      
     ggplot(df_daily, aes(x=UsageDate, y=TotalCosts, fill = ProductName)) + 
       geom_bar(stat='identity') + xlab('Date') + ylab('Costs in US$') +
-      ggtitle('DAILY SPENDING')
+      ggtitle(paste('DAILY SPENDING LAST ', days, 'DAYS'))
   })
   
 })

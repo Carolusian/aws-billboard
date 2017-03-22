@@ -30,9 +30,9 @@ df <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
 
 shinyServer(function(input, output) {
   
-  ##################################################
-  # Display daily spendings of EC2, ElastiCache, RDS
-  ##################################################
+  #################################################################
+  # Display daily spendings of EC2, ElastiCache, RDS and CloudFront
+  #################################################################
   output$daily_spend <- renderPlot({
     
     # Time of span of the billings to be included

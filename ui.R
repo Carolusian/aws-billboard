@@ -25,8 +25,8 @@ shinyUI(fluidPage(
     # Show a plot of the generated distribution
     mainPanel(
       tabsetPanel(
-        tabPanel('Daily Spending', plotOutput('daily_spend')) #,
-        # tabPanel('Top EC2', plotOutput('')),
+        tabPanel('Daily Spending', plotOutput('daily_spend')),
+        tabPanel('Top EC2', plotOutput('top_ec2'))
         # tabPanel('EC2 Hours', plotOutput('')),
         # tabPanel('RI Planner', plotOutput(''))
       )

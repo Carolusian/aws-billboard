@@ -10,23 +10,44 @@
 library(shiny)
 library(dplyr)
 library(tidyr)
+library(stringr)
 library(ggplot2)
 
 # Read all billing details in a single dataframe
 files <- list.files('~/billings')
 files <- files[grepl('aws-billing-detailed-line-items-20.*csv$', files) == T]
 df_raw <- read.csv(paste('~/billings/', files[1], sep=''), stringsAsFactors = F)
-for (f in files[-1]) {
+
+# The longest span is 90 days, so we just need reports for the last 4 months
+for (f in tail(files, 4)) {
   full_path <- paste('~/billings/', f, sep = '')
   print(full_path)
   df_raw <- rbind(df_raw, read.csv(full_path))
 }
 
 # Find usages of EC2, RDS and ElastiCache, CloudFront 
-df <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
+df_raw <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
                                         'Amazon RDS Service',
                                         'Amazon ElastiCache',
                                         'Amazon CloudFront'))
+
+
+# Given the dataframe with all data
+# it return the latest data for last n days
+report_for <- function(days, df_full) {
+  # The billing date have a delay, so we minus 3
+  today <- Sys.Date() - as.difftime(3, units = 'days')
+  start_date <- today - as.difftime(days, units = 'days')
+  
+  # Remove rows UsageType of which is empty
+  df <- filter(df_full, UsageType != '')
+  
+  # Annotate with UsageDate in '2017-01-01' format
+  df <- df %>% mutate(UsageDate = as.Date(UsageStartDate, format='%Y-%m-%d'))
+  
+  # Remove data not in selected time range
+  filter(df, UsageDate > start_date & UsageDate <= today)
+}
 
 shinyServer(function(input, output) {
   
@@ -34,24 +55,9 @@ shinyServer(function(input, output) {
   # Display daily spendings of EC2, ElastiCache, RDS and CloudFront
   #################################################################
   output$daily_spend <- renderPlot({
-    
     # Time of span of the billings to be included
     days <- ifelse(exists('input'), input$days, 30)
-    # The billing date have a delay, so we minus 3
-    today <- Sys.Date() - as.difftime(3, units = 'days')
-    start_date <- today - as.difftime(days, units = 'days')
-    
-    
-    
-    # Remove rows UsageType of which is empty
-    df <- filter(df, UsageType != '')
-    
-    # Annotate with UsageDate in '2017-01-01' format
-    df <- df %>% mutate(UsageDate = as.Date(UsageStartDate, format='%Y-%m-%d'))
-    
-    # Remove data not in selected time range
-    df <- filter(df, UsageDate > start_date & UsageDate <= today)
-    
+    df <- report_for(days, df_raw)
     
     # Get total cost, total hours, pricing rate
     #df_sum <- df %>% group_by(UsageType) %>%
@@ -70,5 +76,37 @@ shinyServer(function(input, output) {
     ggplot(df_daily, aes(x=UsageDate, y=TotalCosts, fill = ProductName)) + 
       geom_bar(stat='identity') + xlab('Date') + ylab('Costs in US$') +
       ggtitle(paste('DAILY SPENDING LAST ', days, 'DAYS'))
+  })
+  
+  
+  ###############################################
+  # Display a pie chart of top EC2 instance types
+  ###############################################
+  output$top_ec2 <- renderPlot({
+    # Time of span of the billings to be included
+    days <- ifelse(exists('input'), input$days, 30)
+    df <- report_for(days, df_raw)
+    
+    # Get only EC2 type spendings
+    df_ec2 <- filter(df, ProductName %in% c('Amazon Elastic Compute Cloud'))  
+    # We are only interested in instance count and running hours
+    df_ec2 <- filter(df_ec2, grepl('BoxUsage', UsageType))
+    
+    # Get only instance types, strip region info
+    df_ec2$InstanceType <- sub("^.*:", "\\1", df_ec2$UsageType)
+    
+    # Get the total span of hours
+    hours_span <- difftime(max(df_ec2$UsageEndDate), min(df_ec2$UsageStartDate), units = 'hours')
+    
+    df_ec2_sum <- df_ec2 %>% group_by(InstanceType) %>%
+      summarise(TotalQuantity = sum(UsageQuantity))
+    
+    # Averge count of instances for each EC2 type
+    df_ec2_sum$AverageQuantity <- round(df_ec2_sum$TotalQuantity / as.integer(hours_span), digits = 1)
+    
+    df_ec2_top <- df_ec2_sum %>% arrange(desc(AverageQuantity)) %>% head
+    pie(df_ec2_top$TotalQuantity, 
+        labels = paste(df_ec2_top$InstanceType, df_ec2_top$AverageQuantity),
+        main = 'AVERAGE COUNT OF TOP EC2 INSTANCE TYPES')
   })
 })

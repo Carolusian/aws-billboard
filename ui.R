@@ -26,7 +26,9 @@ shinyUI(fluidPage(
     mainPanel(
       tabsetPanel(
         tabPanel('Daily Spending', plotOutput('daily_spend')) #,
-        # tabPanel('Top EC2', plotOutput(''))
+        # tabPanel('Top EC2', plotOutput('')),
+        # tabPanel('EC2 Hours', plotOutput('')),
+        # tabPanel('RI Planner', plotOutput(''))
       )
     )
   )

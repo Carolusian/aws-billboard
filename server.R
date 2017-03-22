@@ -30,7 +30,10 @@ df <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
 
 shinyServer(function(input, output) {
   
-  output$distPlot <- renderPlot({
+  ##################################################
+  # Display daily spendings of EC2, ElastiCache, RDS
+  ##################################################
+  output$daily_spend <- renderPlot({
     
     # Time of span of the billings to be included
     days <- ifelse(exists('input'), input$days, 30)
@@ -51,18 +54,15 @@ shinyServer(function(input, output) {
     
     
     # Get total cost, total hours, pricing rate
-    df_sum <- df %>% group_by(UsageType) %>%
-      summarise(TotalCosts = sum(Cost),
-                TotalHours = sum(UsageQuantity),
-                rate = mean(Rate)) 
+    #df_sum <- df %>% group_by(UsageType) %>%
+    #  summarise(TotalCosts = sum(Cost),
+    #            TotalHours = sum(UsageQuantity),
+    #            rate = mean(Rate)) 
     
     # Find only instance usage, filter out data transfers, storage usages, etc
-    df_sum <- filter(df_sum, grepl('BoxUsage', UsageType) | grepl('InstanceUsage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
+    # df_sum <- filter(df_sum, grepl('BoxUsage', UsageType) | grepl('InstanceUsage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
     # pie(df_sum$TotalCosts, labels = df_sum$UsageType)
     
-    ##################################################
-    # Display daily spendings of EC2, ElastiCache, RDS
-    ##################################################
     df_daily <- df %>% group_by(UsageDate, UsageType, ProductName) %>%
       summarise(TotalCosts = sum(Cost),
                 TotalHours = sum(UsageQuantity))
@@ -71,5 +71,4 @@ shinyServer(function(input, output) {
       geom_bar(stat='identity') + xlab('Date') + ylab('Costs in US$') +
       ggtitle(paste('DAILY SPENDING LAST ', days, 'DAYS'))
   })
-  
 })

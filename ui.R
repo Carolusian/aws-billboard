@@ -10,13 +10,13 @@ library(shiny)
 shinyUI(fluidPage(
 
   # Application title
-  titlePanel("AWS Billing Dashboard"),
+  titlePanel('AWS Billing Dashboard'),
 
   # Sidebar with a slider input for number of bins
   sidebarLayout(
     sidebarPanel(
-      sliderInput("days",
-                  "Number of days:",
+      sliderInput('days',
+                  'Number of days:',
                   min = 1,
                   max = 90,
                   value = 30)
@@ -24,7 +24,10 @@ shinyUI(fluidPage(
 
     # Show a plot of the generated distribution
     mainPanel(
-      plotOutput("distPlot")
+      tabsetPanel(
+        tabPanel('Daily Spending', plotOutput('daily_spend')) #,
+        # tabPanel('Top EC2', plotOutput(''))
+      )
     )
   )
 ))

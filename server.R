@@ -36,7 +36,7 @@ df_raw <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
 # it return the latest data for last n days
 report_for <- function(days, df_full) {
   # The billing date have a delay, so we minus 3
-  today <- Sys.Date() - as.difftime(3, units = 'days')
+  today <- Sys.Date() - as.difftime(0, units = 'days')
   start_date <- today - as.difftime(days, units = 'days')
   
   # Remove rows UsageType of which is empty
@@ -115,9 +115,14 @@ shinyServer(function(input, output) {
   # RI Planner
   ###############################################
   output$ri_planner <- renderPlot({
-    days <- ifelse(exists('input'), input$days, 30)
-    df <- filter(report_for(days, df_raw), grepl('BoxUsage', UsageType) | grepl('Usage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
-    df %>% group_by(UsageType, AvailabilityZone) %>%
+    days <- ifelse(exists('input'), input$days, 10)
+    df <- filter(report_for(days, df_raw), 
+                 grepl('BoxUsage', UsageType) | 
+                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                   grepl('Usage:db', UsageType) | 
+                   grepl('NodeUsage:cache', UsageType))
+    df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance) %>%
       summarise(TotalQuantity = sum(UsageQuantity))
+    View(df_sum)
   })
 })

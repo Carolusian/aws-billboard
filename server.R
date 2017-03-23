@@ -44,9 +44,119 @@ report_for <- function(days, df_full) {
   
   # Annotate with UsageDate in '2017-01-01' format
   df <- df %>% mutate(UsageDate = as.Date(UsageStartDate, format='%Y-%m-%d'))
-  
+ 
   # Remove data not in selected time range
   filter(df, UsageDate > start_date & UsageDate <= today)
+}
+
+
+# Planner function for to get matrics if EC2 instance reserved
+# Return a dataframe include the costs if the EC2 instance if reserved
+ec2_ri_planner <- function (days, df_full) {
+  df <- filter(report_for(days, df_full), 
+               grepl('BoxUsage', UsageType) | 
+                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('Usage:db', UsageType) | 
+                 grepl('NodeUsage:cache', UsageType))
+  
+  # Sum up the total cost
+  df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance, Rate) %>%
+    summarise(TotalQuantity = sum(UsageQuantity),
+              TotalCost = sum(Cost),
+              RateSum = sum(Rate * UsageQuantity))
+  
+  # Compare with Reserved Instances for EC2
+  df_ec2 <- filter(df_sum, grepl('BoxUsage', UsageType) | 
+                     (grepl('HeavyUsage', UsageType) & AvailabilityZone != '')) 
+  
+  # Read quotation for EC2 reserved instances
+  # Suppose we have 365 x 24 = 8760 billings hours each year 
+  hours_1yr <- 365 * 24
+  ri_ec2_quot <- read.csv('Consolidated-RI-Quotation-EC2.csv', stringsAsFactors = F)
+  ri_ec2_hrs <- filter(ri_ec2_quot, tolower(Unit) == 'hrs')[c('usageType', 'PricePerUnit')]
+  ri_ec2_upfront <- filter(ri_ec2_quot, tolower(Unit) == 'quantity')[c('usageType', 'PricePerUnit')]
+  df_ec2_quot <- merge(df_ec2, ri_ec2_hrs, by.x = 'UsageType', by.y = 'usageType')
+  df_ec2_quot <- merge(df_ec2_quot, ri_ec2_upfront, by.x = 'UsageType', by.y = 'usageType')
+  df_ec2_quot <- df_ec2_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
+  df_ec2_quot <- df_ec2_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
+  df_ec2_quot <- df_ec2_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_ec2_quot <- df_ec2_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  
+  # Get only instance types, strip region info
+  df_ec2_quot$InstanceType <- sub("^.*:", "\\1", df_ec2_quot$UsageType)
+  df_ec2_quot[c('InstanceType', 'AvailabilityZone', 'ReservedInstance', 'TotalCost', 'TotalIfReserved', 'SaveIfReserved', 'SaveRate')]
+}
+
+# Planner function for to get matrics if RDS instance reserved
+# Return a dataframe include the costs if the RDS instance if reserved
+rds_ri_planner <- function (days, df_full) {
+  df <- filter(report_for(days, df_full), 
+               grepl('BoxUsage', UsageType) | 
+                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('Usage:db', UsageType) | 
+                 grepl('NodeUsage:cache', UsageType))
+  
+  # Sum up the total cost
+  df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance, Rate) %>%
+    summarise(TotalQuantity = sum(UsageQuantity),
+              TotalCost = sum(Cost),
+              RateSum = sum(Rate * UsageQuantity))
+  
+  # Compare with Reserved Instances for RDS
+  df_rds <- filter(df_sum, grepl('Usage:db', UsageType)) 
+  
+  # Read quotation for RDS reserved instances
+  # Suppose we have 365 x 24 = 8760 billings hours each year 
+  hours_1yr <- 365 * 24
+  ri_rds_quot <- read.csv('Consolidated-RI-Quotation-RDS.csv', stringsAsFactors = F)
+  ri_rds_hrs <- filter(ri_rds_quot, tolower(Unit) == 'hrs')[c('usageType', 'PricePerUnit')]
+  ri_rds_upfront <- filter(ri_rds_quot, tolower(Unit) == 'quantity')[c('usageType', 'PricePerUnit')]
+  df_rds_quot <- merge(df_rds, ri_rds_hrs, by.x = 'UsageType', by.y = 'usageType')
+  df_rds_quot <- merge(df_rds_quot, ri_rds_upfront, by.x = 'UsageType', by.y = 'usageType')
+  df_rds_quot <- df_rds_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
+  df_rds_quot <- df_rds_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
+  df_rds_quot <- df_rds_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_rds_quot <- df_rds_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  
+  # Get only instance types, strip region info
+  df_rds_quot$InstanceType <- sub("^.*:", "\\1", df_rds_quot$UsageType)
+  df_rds_quot[c('InstanceType', 'AvailabilityZone', 'ReservedInstance', 'TotalCost', 'TotalIfReserved', 'SaveIfReserved', 'SaveRate')]
+}
+
+cache_ri_planner <- function(days, df_full) {
+  
+  df <- filter(report_for(days, df_full), 
+               grepl('BoxUsage', UsageType) | 
+                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('Usage:db', UsageType) | 
+                 grepl('NodeUsage:cache', UsageType))
+  
+  # Sum up the total cost
+  df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance, Rate) %>%
+    summarise(TotalQuantity = sum(UsageQuantity),
+              TotalCost = sum(Cost),
+              RateSum = sum(Rate * UsageQuantity))
+  
+  # Compare with Reserved Instances for ElastiCache
+  df_cache <- filter(df_sum, grepl('NodeUsage:cache', UsageType)) 
+  
+  # Read quotation for ElastiCache reserved instances
+  # Suppose we have 365 x 24 = 8760 billings hours each year 
+  hours_1yr <- 365 * 24
+  ri_cache_quot <- read.csv('Consolidated-RI-Quotation-ElastiCache.csv', stringsAsFactors = F)
+  ri_cache_hrs <- filter(ri_cache_quot, tolower(Unit) == 'hrs')[c('usageType', 'PricePerUnit')]
+  ri_cache_upfront <- filter(ri_cache_quot, tolower(Unit) == 'quantity')[c('usageType', 'PricePerUnit')]
+  df_cache_quot <- merge(df_cache, ri_cache_hrs, by.x = 'UsageType', by.y = 'usageType')
+  df_cache_quot <- merge(df_cache_quot, ri_cache_upfront, by.x = 'UsageType', by.y = 'usageType')
+  df_cache_quot <- df_cache_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
+  df_cache_quot <- df_cache_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
+  df_cache_quot <- df_cache_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_cache_quot <- df_cache_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  
+  # Get only instance types, strip region info
+  df_cache_quot$InstanceType <- sub("^.*:", "\\1", df_cache_quot$UsageType)
+  df_cache_quot[c('InstanceType', 'AvailabilityZone', 'ReservedInstance', 'TotalCost', 'TotalIfReserved', 'SaveIfReserved', 'SaveRate')]
+  
 }
 
 shinyServer(function(input, output) {
@@ -90,7 +200,8 @@ shinyServer(function(input, output) {
     # Get only EC2 type spendings
     df_ec2 <- filter(df, ProductName %in% c('Amazon Elastic Compute Cloud'))  
     # We are only interested in instance count and running hours
-    df_ec2 <- filter(df_ec2, grepl('BoxUsage', UsageType))
+    df_ec2 <- filter(df_ec2, grepl('BoxUsage', UsageType) |
+                       (grepl('HeavyUsage', UsageType) & AvailabilityZone != '')) 
     
     # Get only instance types, strip region info
     df_ec2$InstanceType <- sub("^.*:", "\\1", df_ec2$UsageType)
@@ -114,15 +225,34 @@ shinyServer(function(input, output) {
   ###############################################
   # RI Planner
   ###############################################
-  output$ri_planner <- renderPlot({
-    days <- ifelse(exists('input'), input$days, 10)
-    df <- filter(report_for(days, df_raw), 
-                 grepl('BoxUsage', UsageType) | 
-                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
-                   grepl('Usage:db', UsageType) | 
-                   grepl('NodeUsage:cache', UsageType))
-    df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance) %>%
-      summarise(TotalQuantity = sum(UsageQuantity))
-    View(df_sum)
+  output$ec2_ri_metrics <- renderTable({
+    days <- ifelse(exists('input'), input$days, 30)
+    ec2_ri_planner(days, df_raw)
+    
+  })
+  
+  output$ec2_ri_saved <- renderPrint({
+    days <- ifelse(exists('input'), input$days, 30)
+    paste('TOTAL EC2 COST CAN SAVE:', sum(ec2_ri_planner(days, df_raw)$SaveIfReserved))
+  })
+  
+  output$rds_ri_metrics <- renderTable({
+    days <- ifelse(exists('input'), input$days, 30)
+    rds_ri_planner(days, df_raw)
+  })
+  
+  output$rds_ri_saved <- renderPrint({
+    days <- ifelse(exists('input'), input$days, 30)
+    paste('TOTAL RDS COST CAN SAVE:', sum(rds_ri_planner(days, df_raw)$SaveIfReserved))
+  })
+  
+  output$cache_ri_metrics <- renderTable({
+    days <- ifelse(exists('input'), input$days, 30)
+    cache_ri_planner(days, df_raw)
+  })
+  
+  output$cache_ri_saved <- renderPrint({
+    days <- ifelse(exists('input'), input$days, 30)
+    paste('TOTAL ELASTICACHE COST CAN SAVE:', sum(cache_ri_planner(days, df_raw)$SaveIfReserved))
   })
 })

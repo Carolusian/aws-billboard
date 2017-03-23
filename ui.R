@@ -28,7 +28,13 @@ shinyUI(fluidPage(
         tabPanel('Daily Spending', plotOutput('daily_spend')),
         tabPanel('Top EC2', plotOutput('top_ec2')),
         # tabPanel('EC2 Hours', plotOutput('')),
-        tabPanel('RI Planner', plotOutput('ri_planner'))
+        tabPanel('RI Planner', 
+                 tableOutput('ec2_ri_metrics'), 
+                 verbatimTextOutput('ec2_ri_saved'),
+                 tableOutput('rds_ri_metrics'), 
+                 verbatimTextOutput('rds_ri_saved'),
+                 tableOutput('cache_ri_metrics'), 
+                 verbatimTextOutput('cache_ri_saved'))
       )
     )
   )

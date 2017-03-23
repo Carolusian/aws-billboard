@@ -144,6 +144,7 @@ cache_ri_planner <- function(days, df_full) {
   # Suppose we have 365 x 24 = 8760 billings hours each year 
   hours_1yr <- 365 * 24
   ri_cache_quot <- read.csv('Consolidated-RI-Quotation-ElastiCache.csv', stringsAsFactors = F)
+  ri_cache_quot <- filter(ri_cache_quot, grepl('redis', tolower(Cache.Engine)))
   ri_cache_hrs <- filter(ri_cache_quot, tolower(Unit) == 'hrs')[c('usageType', 'PricePerUnit')]
   ri_cache_upfront <- filter(ri_cache_quot, tolower(Unit) == 'quantity')[c('usageType', 'PricePerUnit')]
   df_cache_quot <- merge(df_cache, ri_cache_hrs, by.x = 'UsageType', by.y = 'usageType')

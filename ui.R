@@ -35,6 +35,7 @@ shinyUI(fluidPage(
                  verbatimTextOutput('rds_ri_saved'),
                  tableOutput('cache_ri_metrics'), 
                  verbatimTextOutput('cache_ri_saved'))
+        # tabPanel('Cash Flow Comparison', plotOutput('cash_ri_1yr')
       )
     )
   )

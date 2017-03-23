@@ -20,3 +20,5 @@
 vignettes/*.html
 vignettes/*.pdf
 
+.DS_Store
+*.nb.html

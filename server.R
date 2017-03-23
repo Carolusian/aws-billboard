@@ -109,4 +109,15 @@ shinyServer(function(input, output) {
         labels = paste(df_ec2_top$InstanceType, df_ec2_top$AverageQuantity),
         main = 'AVERAGE COUNT OF TOP EC2 INSTANCE TYPES')
   })
+  
+  
+  ###############################################
+  # RI Planner
+  ###############################################
+  output$ri_planner <- renderPlot({
+    days <- ifelse(exists('input'), input$days, 30)
+    df <- filter(report_for(days, df_raw), grepl('BoxUsage', UsageType) | grepl('Usage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
+    df %>% group_by(UsageType, AvailabilityZone) %>%
+      summarise(TotalQuantity = sum(UsageQuantity))
+  })
 })

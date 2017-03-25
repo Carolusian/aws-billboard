@@ -27,7 +27,7 @@ shinyUI(fluidPage(
       tabsetPanel(
         tabPanel('Daily Spending', plotOutput('daily_spend')),
         tabPanel('Top EC2', plotOutput('top_ec2')),
-        # tabPanel('EC2 Hours', plotOutput('')),
+        tabPanel('EC2 Hours', plotOutput('ec2_hours')),
         # Also need to calculate instance per hour to find minimum number of instances 
         # Add place holders for ploting instances per hour
         tabPanel('RI Planner', 

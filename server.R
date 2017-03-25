@@ -44,6 +44,7 @@ report_for <- function(days, df_full) {
   
   # Annotate with UsageDate in '2017-01-01' format
   df <- df %>% mutate(UsageDate = as.Date(UsageStartDate, format='%Y-%m-%d'))
+  df <- df %>% mutate(UsageDateTime = as.POSIXct(UsageStartDate, format='%Y-%m-%d %H:%M'))
  
   # Remove data not in selected time range
   filter(df, UsageDate > start_date & UsageDate <= today)
@@ -220,6 +221,36 @@ shinyServer(function(input, output) {
     pie(df_ec2_top$TotalQuantity, 
         labels = paste(df_ec2_top$InstanceType, df_ec2_top$AverageQuantity),
         main = 'AVERAGE COUNT OF TOP EC2 INSTANCE TYPES')
+  })
+  
+  
+  ###############################################
+  # EC2 instances per hour
+  ###############################################
+  output$ec2_hours <- renderPlot(height = 1500, units="px", {
+    # Time of span of the billings to be included
+    days <- ifelse(exists('input'), input$days, 30)
+    df <- report_for(days, df_raw)
+    
+    # Get only EC2 type spendings
+    df_ec2 <- filter(df, ProductName %in% c('Amazon Elastic Compute Cloud'))  
+    # We are only interested in instance count and running hours
+    df_ec2 <- filter(df_ec2, grepl('BoxUsage', UsageType) |
+                       (grepl('HeavyUsage', UsageType) & AvailabilityZone != '')) 
+    
+    # Get only instance types, strip region info
+    df_ec2$InstanceType <- sub("^.*:", "\\1", df_ec2$UsageType)
+    
+    # The following plots EC2 instances count per hour for each EC2 type
+    df_ec2_daily <- df_ec2 %>% group_by(InstanceType, UsageDateTime) %>%
+      summarise(TotalQuantity = sum(UsageQuantity))
+    
+    # Use facet_grid to make multiple plots
+    ggplot(df_ec2_daily, aes(x = UsageDateTime, y = TotalQuantity)) + 
+      geom_area(fill="blue", alpha=.5) +
+      facet_grid(InstanceType ~ .) +
+      xlab('') + ylab('Instances Per Hour') +
+      ggtitle(paste('DAILY EC2 INSTANCES RUNNING PER HOUR LAST ', days, 'DAYS'))
   })
   
   

@@ -287,4 +287,49 @@ shinyServer(function(input, output) {
     days <- ifelse(exists('input'), input$days, 30)
     paste('TOTAL ELASTICACHE COST CAN SAVE:', sum(cache_ri_planner(days, df_raw)$SaveIfReserved))
   })
+  
+  
+  ###############################################
+  # RI Cash Flow Comparison
+  ###############################################
+  output$cash_ri_1yr <- renderPlot(height = 2500, units="px", {
+    # Time of span of the billings to be included
+    days <- ifelse(exists('input'), input$days, 30)
+    df <- filter(report_for(days, df_raw), 
+                 grepl('BoxUsage', UsageType) | 
+                   grepl('Usage:db', UsageType) | 
+                   grepl('NodeUsage:cache', UsageType))
+    df_sum <- df %>% group_by(UsageType, Rate) %>%
+     summarise(TotalQuantity = sum(UsageQuantity)) 
+    
+    hours_1yr <- seq(1, 365 * 24)
+    ri_ec2_quot <- read.csv('Consolidated-RI-Quotation-EC2.csv', stringsAsFactors = F)
+    df_ec2_hrs <- filter(ri_ec2_quot, usageType %in% df_sum$UsageType & tolower(Unit) == 'hrs')
+    df_ec2_upfront <- filter(ri_ec2_quot, usageType %in% df_sum$UsageType & tolower(Unit) == 'quantity')
+    
+    df_ec2_quot <- merge(df_sum, df_ec2_hrs, by.x = 'UsageType', by.y = 'usageType')
+    df_ec2_quot <- merge(df_ec2_quot, df_ec2_upfront, by.x = 'UsageType', by.y = 'usageType')
+    df_ec2_quot <- df_ec2_quot[c('UsageType', 'Rate', 'PricePerUnit.x', 'PricePerUnit.y')]
+    
+    for (i in 1:nrow(df_ec2_quot)) {
+      usage <- df_ec2_quot[i, c('UsageType')]
+      ondemand_rate <- df_ec2_quot[i, c('Rate')]
+      ri_rate <- df_ec2_quot[i, c('PricePerUnit.x')]
+      upfront <- df_ec2_quot[i, c('PricePerUnit.y')]
+      
+      ondemand <- rep(ondemand_rate, 365 * 24) * hours_1yr
+      ri <- rep(ri_rate, 365 * 24) * hours_1yr + upfront
+      cash_date <- as.POSIXct(Sys.Date()) + as.difftime(hours_1yr, unit='hours')
+      if (!exists('df_ec2_cash')) {
+        df_ec2_cash <- data.frame(usage, cash_date, ondemand, ri)
+      } else {
+        df_ec2_cash <- rbind(df_ec2_cash, data.frame(usage, cash_date, ondemand, ri))
+      }
+    }
+    
+    ggplot(df_ec2_cash, aes(x = cash_date)) + 
+      geom_line(aes(y = ondemand, colour = 'On Demanding')) + 
+      geom_line(aes(y = ri, colour = 'Reserved')) + 
+      facet_grid(usage ~ .)
+  })
 })

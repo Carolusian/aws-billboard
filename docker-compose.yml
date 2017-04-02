@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  shiny:
+    build: .
+    volumes:
+      - .:/srv/shiny-server/aws-billing
+      - ~/billings:/root/billings
+    ports:
+      - 3838:3838
+

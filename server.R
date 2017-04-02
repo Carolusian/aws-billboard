@@ -16,13 +16,16 @@ library(ggplot2)
 # Read all billing details in a single dataframe
 files <- list.files('~/billings')
 files <- files[grepl('aws-billing-detailed-line-items-20.*csv$', files) == T]
-df_raw <- read.csv(paste('~/billings/', files[1], sep=''), stringsAsFactors = F)
 
 # The longest span is 90 days, so we just need reports for the last 4 months
 for (f in tail(files, 4)) {
   full_path <- paste('~/billings/', f, sep = '')
   print(full_path)
-  df_raw <- rbind(df_raw, read.csv(full_path))
+  if(!exists('df_raw')) {
+    df_raw <- read.csv(full_path, stringsAsFactors = F)
+  } else {
+    df_raw <- rbind(df_raw, read.csv(full_path, stringsAsFactors = F))
+  }
 }
 
 # Find usages of EC2, RDS and ElastiCache, CloudFront 
@@ -36,7 +39,7 @@ df_raw <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
 # it return the latest data for last n days
 report_for <- function(days, df_full) {
   # The billing date have a delay, so we minus 3
-  today <- Sys.Date() - as.difftime(3, units = 'days')
+  today <- Sys.Date() - as.difftime(1, units = 'days')
   start_date <- today - as.difftime(days, units = 'days')
   
   # Remove rows UsageType of which is empty

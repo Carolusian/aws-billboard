@@ -14,12 +14,12 @@ library(stringr)
 library(ggplot2)
 
 # Read all billing details in a single dataframe
-files <- list.files('~/billings')
+files <- list.files('.billings')
 files <- files[grepl('aws-billing-detailed-line-items-20.*csv$', files) == T]
 
 # The longest span is 90 days, so we just need reports for the last 4 months
 for (f in tail(files, 4)) {
-  full_path <- paste('~/billings/', f, sep = '')
+  full_path <- paste('.billings/', f, sep = '')
   print(full_path)
   if(!exists('df_raw')) {
     df_raw <- read.csv(full_path, stringsAsFactors = F)

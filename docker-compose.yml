@@ -4,8 +4,7 @@ services:
   shiny:
     build: .
     volumes:
-      - .:/srv/shiny-server/aws-billing
-      - ~/billings:/root/billings
+      - .:/srv/shiny-server/
     ports:
       - 3838:3838
 

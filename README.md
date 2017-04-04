@@ -12,6 +12,6 @@
 * Create an IAM and grant access to your bucket: https://aws.amazon.com/cn/blogs/security/writing-iam-policies-how-to-grant-access-to-an-amazon-s3-bucket/;
 * Properly configure your awscli with `aws configure` using your IAM credential;
 * Clone this repo: `git clone https://github.com/Carolusian/aws-billboard.git`
-* Then, download your AWS billing reports: `cd aws-billing && bash get_billing_reports.sh` 
+* Then, download your AWS billing reports: `cd aws-billing && bash get_billing_reports.sh YOUR_BUCKET_NAME_HERE` 
 * Launch your server with: `docker-compose up`
 * Open your browser: `http://127.0.0.1:3838`

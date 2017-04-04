@@ -22,7 +22,7 @@ In order to get latest AWS reports, you can create a cron job to pull those data
 
 ## Update the Price Quotations (Optional)
 
-This repository contains default price quotations for EC2, RDS and ElastiCache services with different pricing models (On Demanding and Reserved Instances). However, prices may changes, you may want to update the quotations from time to time.
+This repository contains default price quotations for EC2, RDS and ElastiCache services with different pricing models (On Demanding and Reserved Instances). However, prices may change, you may want to update the quotations from time to time.
 
 Just use this command: `docker-compose run shiny bash /srv/shiny-server/get_quotation.sh`
 

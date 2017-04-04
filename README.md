@@ -5,7 +5,7 @@
 ## Deployment Steps
 
 * Install `unzip`: `sudo apt-get install unzip -y`;
-*Install `docker` and `docker-compose` (follow steps here: https://docs.docker.com/engine/installation/linux/ubuntu/);
+* Install `docker` and `docker-compose` (follow steps here: https://docs.docker.com/engine/installation/linux/ubuntu/);
 * Install `aws-cli`: `pip install awscli`;
 * Turn on AWS Cost and Usage reports: http://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/billing-getting-started.html#step-2;
 * Wait a few days for the reports to be generated in your S3 bucket;

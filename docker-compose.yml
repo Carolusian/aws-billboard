@@ -7,4 +7,3 @@ services:
       - .:/srv/shiny-server/
     ports:
       - 3838:3838
-

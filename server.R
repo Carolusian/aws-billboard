@@ -16,6 +16,7 @@ library(ggplot2)
 # Read all billing details in a single dataframe
 files <- list.files('.billings')
 files <- files[grepl('aws-billing-detailed-line-items-20.*csv$', files) == T]
+#files <- files[grepl('dbr-with-tags-20.*csv$', files) == T]
 
 # The longest span is 90 days, so we just need reports for the last 4 months
 for (f in tail(files, 4)) {
@@ -34,6 +35,11 @@ df_raw <- filter(df_raw, ProductName %in% c('Amazon Elastic Compute Cloud',
                                         'Amazon ElastiCache',
                                         'Amazon CloudFront'))
 
+# If it is unblended cost
+if ('UnBlendedCost' %in% colnames(df_raw)) {
+  df_raw$Cost <- df_raw$UnBlendedCost 
+  df_raw$Rate <- df_raw$UnBlendedRate
+}
 
 # Given the dataframe with all data
 # it return the latest data for last n days
@@ -59,9 +65,11 @@ report_for <- function(days, df_full) {
 ec2_ri_planner <- function (days, df_full) {
   df <- filter(report_for(days, df_full), 
                grepl('BoxUsage', UsageType) | 
-                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('HeavyUsage', UsageType) | 
                  grepl('Usage:db', UsageType) | 
                  grepl('NodeUsage:cache', UsageType))
+  
+  df <- df %>% mutate(UsageType = str_replace_all(UsageType, 'HeavyUsage', 'BoxUsage'))
   
   # Sum up the total cost
   df_sum <- df %>% group_by(UsageType, AvailabilityZone, ReservedInstance, Rate) %>%
@@ -70,8 +78,7 @@ ec2_ri_planner <- function (days, df_full) {
               RateSum = sum(Rate * UsageQuantity))
   
   # Compare with Reserved Instances for EC2
-  df_ec2 <- filter(df_sum, grepl('BoxUsage', UsageType) | 
-                     (grepl('HeavyUsage', UsageType) & AvailabilityZone != '')) 
+  df_ec2 <- filter(df_sum, grepl('BoxUsage', UsageType)) 
   
   # Read quotation for EC2 reserved instances
   # Suppose we have 365 x 24 = 8760 billings hours each year 
@@ -83,8 +90,10 @@ ec2_ri_planner <- function (days, df_full) {
   df_ec2_quot <- merge(df_ec2_quot, ri_ec2_upfront, by.x = 'UsageType', by.y = 'usageType')
   df_ec2_quot <- df_ec2_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
   df_ec2_quot <- df_ec2_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
-  df_ec2_quot <- df_ec2_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_ec2_quot <- df_ec2_quot %>% mutate(IfReserved = TotalCost - TotalIfReserved) 
+  df_ec2_quot <- df_ec2_quot %>% mutate(SaveIfReserved = ifelse(IfReserved > 0, IfReserved, 0)) 
   df_ec2_quot <- df_ec2_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  df_ec2_quot$SaveRate[is.na(df_ec2_quot$SaveRate)] <- 0
   
   # Get only instance types, strip region info
   df_ec2_quot$InstanceType <- sub("^.*:", "\\1", df_ec2_quot$UsageType)
@@ -96,7 +105,7 @@ ec2_ri_planner <- function (days, df_full) {
 rds_ri_planner <- function (days, df_full) {
   df <- filter(report_for(days, df_full), 
                grepl('BoxUsage', UsageType) | 
-                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('HeavyUsage', UsageType) | 
                  grepl('Usage:db', UsageType) | 
                  grepl('NodeUsage:cache', UsageType))
   
@@ -119,8 +128,10 @@ rds_ri_planner <- function (days, df_full) {
   df_rds_quot <- merge(df_rds_quot, ri_rds_upfront, by.x = 'UsageType', by.y = 'usageType')
   df_rds_quot <- df_rds_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
   df_rds_quot <- df_rds_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
-  df_rds_quot <- df_rds_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_rds_quot <- df_rds_quot %>% mutate(IfReserved = TotalCost - TotalIfReserved) 
+  df_rds_quot <- df_rds_quot %>% mutate(SaveIfReserved = ifelse(IfReserved > 0, IfReserved, 0)) 
   df_rds_quot <- df_rds_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  df_rds_quot$SaveRate[is.na(df_rds_quot$SaveRate)] <- 0
   
   # Get only instance types, strip region info
   df_rds_quot$InstanceType <- sub("^.*:", "\\1", df_rds_quot$UsageType)
@@ -131,7 +142,7 @@ cache_ri_planner <- function(days, df_full) {
   
   df <- filter(report_for(days, df_full), 
                grepl('BoxUsage', UsageType) | 
-                 (grepl('HeavyUsage', UsageType) & AvailabilityZone != '') | 
+                 grepl('HeavyUsage', UsageType) | 
                  grepl('Usage:db', UsageType) | 
                  grepl('NodeUsage:cache', UsageType))
   
@@ -155,8 +166,10 @@ cache_ri_planner <- function(days, df_full) {
   df_cache_quot <- merge(df_cache_quot, ri_cache_upfront, by.x = 'UsageType', by.y = 'usageType')
   df_cache_quot <- df_cache_quot %>% mutate(RateIfReserved = round(PricePerUnit.x + PricePerUnit.y / hours_1yr, digits = 3))
   df_cache_quot <- df_cache_quot %>% mutate(TotalIfReserved = RateIfReserved * TotalQuantity)
-  df_cache_quot <- df_cache_quot %>% mutate(SaveIfReserved = TotalCost - TotalIfReserved) 
+  df_cache_quot <- df_cache_quot %>% mutate(IfReserved = TotalCost - TotalIfReserved) 
+  df_cache_quot <- df_cache_quot %>% mutate(SaveIfReserved = ifelse(IfReserved > 0, IfReserved, 0)) 
   df_cache_quot <- df_cache_quot %>% mutate(SaveRate = round(SaveIfReserved / TotalCost, digits = 2))
+  df_cache_quot$SaveRate[is.na(df_cache_quot$SaveRate)] <- 0
   
   # Get only instance types, strip region info
   df_cache_quot$InstanceType <- sub("^.*:", "\\1", df_cache_quot$UsageType)
@@ -183,11 +196,10 @@ shinyServer(function(input, output) {
     # Find only instance usage, filter out data transfers, storage usages, etc
     # df_sum <- filter(df_sum, grepl('BoxUsage', UsageType) | grepl('InstanceUsage:db', UsageType) | grepl('NodeUsage:cache', UsageType))
     # pie(df_sum$TotalCosts, labels = df_sum$UsageType)
-    
     df_daily <- df %>% group_by(UsageDate, UsageType, ProductName) %>%
       summarise(TotalCosts = sum(Cost),
                 TotalHours = sum(UsageQuantity))
-     
+    
     ggplot(df_daily, aes(x=UsageDate, y=TotalCosts, fill = ProductName)) + 
       geom_bar(stat='identity') + xlab('Date') + ylab('Costs in US$') +
       ggtitle(paste('DAILY SPENDING LAST ', days, 'DAYS'))
